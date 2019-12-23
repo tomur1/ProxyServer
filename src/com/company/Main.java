@@ -10,9 +10,9 @@ public class Main {
         if (args.length != 3){
             throw new IllegalArgumentException("insuficient arguments");
         }
-        int port;
-        String[] blacklistedWords;
-        String cachePath;
+        int port = -1;
+        String[] blacklistedWords = null;
+        String cachePath = null;
         for (int i = 0; i < args.length; i++) {
 
             String[] param = args[i].split("=");
@@ -30,8 +30,14 @@ public class Main {
                 default:
                     throw new IllegalArgumentException("Invalid parameter given");
             }
+            //the argument were correctly assigned
 
-
+            try {
+                System.out.println("Starting the server at port: " + port);
+                new ProxyServer(port, blacklistedWords, cachePath);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
 //        try {
