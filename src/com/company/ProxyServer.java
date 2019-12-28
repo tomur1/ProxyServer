@@ -97,19 +97,19 @@ public class ProxyServer {
                 throw new NullPointerException("I want to know about this");
             }
 
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+
 
             //Wait for response. I don't want to have some random sleep here
-            serverIn.available();
+            while(serverIn.available() == 0){
+
+            }
 
             BufferedReader bufferedReaderServer = new BufferedReader(new InputStreamReader(serverIn));
             while (bufferedReaderServer.ready()) {
                 System.out.println(bufferedReaderServer.readLine());
             }
+
+            System.out.println("finished");
         }
 
 
