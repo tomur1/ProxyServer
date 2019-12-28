@@ -2,11 +2,13 @@ package com.company;
 
 import sun.net.www.MessageHeader;
 
+import javax.xml.ws.spi.http.HttpHandler;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.SQLOutput;
 import java.util.Arrays;
+import java.util.Scanner;
 
 public class ProxyServer {
 
@@ -22,7 +24,7 @@ public class ProxyServer {
         this.cacheDir = cacheDir;
         this.serverSocket = new ServerSocket(port);
 
-        while (true){
+        while (true) {
             Socket socket = serverSocket.accept();
             System.out.println("new client connected");
             new Thread(new Runnable() {
@@ -49,6 +51,7 @@ public class ProxyServer {
         OutputStream clientOut;
         InputStream serverIn;
         OutputStream serverOut;
+
         ClientHandler(Socket clientSocket) throws IOException {
             this.clientSocket = clientSocket;
             this.clientIn = clientSocket.getInputStream();
@@ -57,43 +60,60 @@ public class ProxyServer {
         }
 
         //handles the connection when client want to access the web
-        void handle(){
+        void handle() throws IOException {
             byte[] buffer = new byte[bufferSize];
             int length;
-            while (true){
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(clientIn));
+            StringBuilder requestBuilder = new StringBuilder();
+            String request = "";
+            while (bufferedReader.ready()) {
 
-                try {
-                    if ((length = clientIn.read(buffer)) != -1){
-                        System.out.println("SOME DATA INCOMING");
-                        MessageHeader msgServer = new MessageHeader(clientIn);
-                        String host = msgServer.findValue("Host");
+                String data = bufferedReader.readLine();
 
-                        if (webSocket == null || webSocket.isClosed()){
-                            System.out.println("new Host: " + host);
-                            webSocket = new Socket(host, 80);
-                            serverIn = webSocket.getInputStream();
-                            serverOut = webSocket.getOutputStream();
-                        }
-
-                        //send data to the web and get response
-                        serverOut.write(buffer, 0, length);
-                        serverOut.flush();
-                    }
-
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if (data.contains("Host:")) {
+                    //save the host name
+                    //80 is the http port
+                    webSocket = new Socket(data.substring(6), 80);
+                    serverIn = webSocket.getInputStream();
+                    serverOut = webSocket.getOutputStream();
                 }
+
+                requestBuilder.append(data + "\n");
+
+                System.out.println("SOME DATA INCOMING");
+
+            }
+            request = requestBuilder.toString();
+            //assuming we have all that we need let's check if we have a cache for the response
+
+            OutputStreamWriter writer = new OutputStreamWriter(serverOut);
+            if (request != null) {
+                writer.write(request);
+                writer.flush();
+                System.out.println("request: " + request);
+                System.out.println("send ");
+
+            } else {
+                throw new NullPointerException("I want to know about this");
+            }
+
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            //Wait for response. I don't want to have some random sleep here
+            serverIn.available();
+
+            BufferedReader bufferedReaderServer = new BufferedReader(new InputStreamReader(serverIn));
+            while (bufferedReaderServer.ready()) {
+                System.out.println(bufferedReaderServer.readLine());
             }
         }
 
 
     }
-
-
-
-
-
-
 
 
 }
