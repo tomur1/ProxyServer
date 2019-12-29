@@ -44,7 +44,6 @@ public class ProxyServer {
     //one client is connected to the handler.
     class ClientHandler {
 
-        int bufferSize = 1024;
         Socket clientSocket;
         Socket webSocket;
         InputStream clientIn;
@@ -61,55 +60,74 @@ public class ProxyServer {
 
         //handles the connection when client want to access the web
         void handle() throws IOException {
-            byte[] buffer = new byte[bufferSize];
-            int length;
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(clientIn));
-            StringBuilder requestBuilder = new StringBuilder();
-            String request = "";
-            while (bufferedReader.ready()) {
 
-                String data = bufferedReader.readLine();
+            while (true) {
 
-                if (data.contains("Host:")) {
-                    //save the host name
-                    //80 is the http port
-                    webSocket = new Socket(data.substring(6), 80);
-                    serverIn = webSocket.getInputStream();
-                    serverOut = webSocket.getOutputStream();
+
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(clientIn));
+                StringBuilder requestBuilder = new StringBuilder();
+                String request = "";
+                String fileName = "";
+                while (bufferedReader.ready()) {
+
+                    String data = bufferedReader.readLine();
+
+                    if (data.contains("Host:")) {
+                        //save the host name
+                        //80 is the http port
+                        webSocket = new Socket(data.substring(6), 80);
+                        serverIn = webSocket.getInputStream();
+                        serverOut = webSocket.getOutputStream();
+                    }else if(data.contains("HTTP")){
+                        int firstSpace = data.indexOf(' ');
+                        int lastSpace = data.lastIndexOf(' ');
+                        fileName = data.substring(firstSpace + 1, lastSpace);
+                        System.out.println("result word: " + fileName);
+                    }
+
+
+                    requestBuilder.append(data + "\n");
+
+                }
+                //delete the last /n. There is no need for it.
+                if (request != ""){
+                    requestBuilder.deleteCharAt(requestBuilder.length() - 1);
                 }
 
-                requestBuilder.append(data + "\n");
+                request = requestBuilder.toString();
+                //assuming we have all that we need let's check if we have a cache for the response
 
-                System.out.println("SOME DATA INCOMING");
+                OutputStreamWriter writer = new OutputStreamWriter(serverOut);
+                if (request != null) {
+                    writer.write(request);
+                    writer.flush();
+                    System.out.println("request: " + request + "\n end request");
+
+                } else {
+                    throw new NullPointerException("The request has not been set");
+                }
+
+
+                //Wait for response. I don't want to have some random sleep here
+                while (serverIn.available() == 0) {
+
+                }
+
+                BufferedReader bufferedReaderServer = new BufferedReader(new InputStreamReader(serverIn));
+                OutputStreamWriter clientWriter = new OutputStreamWriter(clientOut);
+
+//                File cacheFile = new File(cacheDir + )
+                while (bufferedReaderServer.ready()) {
+                    //let's send the data back to client and see what happenes
+                    String data = bufferedReaderServer.readLine();
+                    clientWriter.write(data);
+
+                    System.out.println(data);
+                }
+                clientWriter.flush();
+                System.out.println("finished");
 
             }
-            request = requestBuilder.toString();
-            //assuming we have all that we need let's check if we have a cache for the response
-
-            OutputStreamWriter writer = new OutputStreamWriter(serverOut);
-            if (request != null) {
-                writer.write(request);
-                writer.flush();
-                System.out.println("request: " + request);
-                System.out.println("send ");
-
-            } else {
-                throw new NullPointerException("I want to know about this");
-            }
-
-
-
-            //Wait for response. I don't want to have some random sleep here
-            while(serverIn.available() == 0){
-
-            }
-
-            BufferedReader bufferedReaderServer = new BufferedReader(new InputStreamReader(serverIn));
-            while (bufferedReaderServer.ready()) {
-                System.out.println(bufferedReaderServer.readLine());
-            }
-
-            System.out.println("finished");
         }
 
 
