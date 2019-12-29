@@ -70,7 +70,7 @@ public class ProxyServer {
                 String fileName = "";
                 boolean readSomething = false;
                 while (bufferedReader.ready()) {
-                    readSomething = true;
+
                     String data = bufferedReader.readLine();
 
                     if (data.contains("Host:")) {
@@ -80,12 +80,15 @@ public class ProxyServer {
                         serverIn = webSocket.getInputStream();
                         serverOut = webSocket.getOutputStream();
                     }else if(data.contains("HTTP")){
+                        readSomething = true;
+                        System.out.println("!!!!!!!!!!!!!!!" + data);
                         int firstSpace = data.indexOf(' ');
                         int lastSpace = data.lastIndexOf(' ');
                         fileName = data.substring(firstSpace + 1, lastSpace);
 
-                        fileName = fileName.replace("/", "__");
-                        fileName = fileName.replace('.','_');
+                        fileName = fileName.replace("/", "_");
+                        fileName = fileName.replace(".", "_");
+                        fileName = fileName.replace(":", "_");
 
                         System.out.println("result word: " + fileName);
                     }
@@ -98,9 +101,6 @@ public class ProxyServer {
                 if(!readSomething){
                     break;
                 }
-                //delete the last /n. There is no need for it.
-
-                requestBuilder.deleteCharAt(requestBuilder.length() - 1);
 
 
                 request = requestBuilder.toString();
@@ -113,18 +113,13 @@ public class ProxyServer {
                 System.out.println("request: " + request + "\n end request");
 
 
-
                 //Wait for response. I don't want to have some random sleep here
                 while (serverIn.available() == 0) {
-                    try {
-                        Thread.sleep(10);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+
                 }
 
                 BufferedReader bufferedReaderServer = new BufferedReader(new InputStreamReader(serverIn));
-                OutputStreamWriter clientWriter = new OutputStreamWriter(clientOut);
+                BufferedWriter clientWriter = new BufferedWriter(new OutputStreamWriter(clientOut));
 
                 File cacheFile = new File(cacheDir + "\\" + fileName);
                 System.out.println("path: " + cacheDir + "\\" + fileName);
@@ -132,24 +127,36 @@ public class ProxyServer {
                 //check if the file exists
                 if (cacheFile.exists()) {
                     //return the saved file
-                    Scanner fileScanner = new Scanner(cacheFile);
-                    while (fileScanner.hasNext()) {
-                        clientWriter.write(fileScanner.nextLine());
+                    System.out.println("File exists");
+                    BufferedReader cachedFileBufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(cacheFile)));
+                    while (cachedFileBufferedReader.ready()) {
+
+                        clientWriter.write(cachedFileBufferedReader.readLine());
                     }
                 } else {
-                    cacheFile.mkdirs();
+                    cacheFile.getParentFile().mkdirs();
                     cacheFile.createNewFile();
                     System.out.println("creating cache file: " + cacheFile.getAbsolutePath());
                     FileWriter fileWriter = new FileWriter(cacheFile);
+                    String data;
                     while (bufferedReaderServer.ready()) {
                         //let's send the data back to client and to cache
-                        String data = bufferedReaderServer.readLine();
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        data = bufferedReaderServer.readLine() + "\n";
                         clientWriter.write(data);
                         fileWriter.write(data);
+                        if(data.equals("\n")){
+                            clientWriter.flush();
+                        }
                     }
+                    fileWriter.flush();
+                    fileWriter.close();
                 }
                 clientWriter.flush();
-
 
                 System.out.println("finished");
 

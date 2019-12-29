@@ -32,21 +32,15 @@ public class Main {
             }
             //the argument were correctly assigned
 
-            try {
-                System.out.println("Starting the server at port: " + port);
-                new ProxyServer(port, blacklistedWords, cachePath);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+
         }
 
-//        try {
-//            ServerSocket server = new ServerSocket(localport);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        while (true) {
-//
-//            }
+        try {
+            System.out.println("Starting the server at port: " + port);
+            new ProxyServer(port, blacklistedWords, cachePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }
