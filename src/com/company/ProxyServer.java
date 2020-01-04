@@ -1,28 +1,25 @@
 package com.company;
 
-import sun.net.www.MessageHeader;
-
-import javax.xml.ws.spi.http.HttpHandler;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.sql.SQLOutput;
-import java.util.Arrays;
-import java.util.Scanner;
+
 
 public class ProxyServer {
 
     int port;
-    //The socket to connet to this server
+    //The socket to connect to this server
     ServerSocket serverSocket;
     String[] words;
     String cacheDir;
+    boolean useCache;
 
-    ProxyServer(int port, String[] words, String cacheDir) throws IOException {
+    ProxyServer(int port, String[] words, String cacheDir, boolean useCache) throws IOException {
         this.port = port;
         this.words = words;
         this.cacheDir = cacheDir;
         this.serverSocket = new ServerSocket(port);
+        this.useCache = useCache;
 
         while (true) {
             Socket socket = serverSocket.accept();
@@ -66,7 +63,9 @@ public class ProxyServer {
 
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(clientIn));
                 StringBuilder requestBuilder = new StringBuilder();
+                //whole request that came from the browser
                 String request = "";
+                //the name of the file to cache
                 String fileName = "";
                 boolean readSomething = false;
                 while (bufferedReader.ready()) {
@@ -81,16 +80,28 @@ public class ProxyServer {
                         serverOut = webSocket.getOutputStream();
                     }else if(data.contains("HTTP")){
                         readSomething = true;
-                        System.out.println("!!!!!!!!!!!!!!!" + data);
                         int firstSpace = data.indexOf(' ');
                         int lastSpace = data.lastIndexOf(' ');
+                        String fileExtension = "";
                         fileName = data.substring(firstSpace + 1, lastSpace);
+
+                        //get file type
+                        if(fileName.charAt(fileName.length() - 1) != '/'){
+                            //that's some file that has extension
+                            int idx = fileName.lastIndexOf('.');
+                            fileExtension = fileName.substring(idx);
+                            fileName = fileName.substring(0, idx);
+                        }
 
                         fileName = fileName.replace("/", "_");
                         fileName = fileName.replace(".", "_");
                         fileName = fileName.replace(":", "_");
+                        fileName = fileName.replace("?", "_");
 
+                        fileName = fileName + fileExtension;
                         System.out.println("result word: " + fileName);
+                    }else if(data.contains("Accept-Encoding")){
+                        data = "Accept-Encoding: identity";
                     }
 
 
@@ -102,7 +113,6 @@ public class ProxyServer {
                     break;
                 }
 
-
                 request = requestBuilder.toString();
                 //assuming we have all that we need let's check if we have a cache for the response
 
@@ -110,7 +120,7 @@ public class ProxyServer {
 
                 writer.write(request);
                 writer.flush();
-                System.out.println("request: " + request + "\n end request");
+                System.out.println("request: " + request + "\nend request");
 
 
                 //Wait for response. I don't want to have some random sleep here
@@ -125,39 +135,52 @@ public class ProxyServer {
                 System.out.println("path: " + cacheDir + "\\" + fileName);
 
                 //check if the file exists
-                if (cacheFile.exists()) {
-                    //return the saved file
-                    System.out.println("File exists");
-                    BufferedReader cachedFileBufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(cacheFile)));
-                    while (cachedFileBufferedReader.ready()) {
+                String data;
+                if(useCache){
+                    if (cacheFile.exists()) {
+                        //return the saved file
+                        System.out.println("File exists");
+                        BufferedReader cachedFileBufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(cacheFile)));
+                        while (cachedFileBufferedReader.ready()) {
+                            data = cachedFileBufferedReader.readLine() + "\n";
 
-                        clientWriter.write(cachedFileBufferedReader.readLine());
+                            clientWriter.write(data);
+                        }
+                    } else {
+                        cacheFile.getParentFile().mkdirs();
+                        cacheFile.createNewFile();
+                        System.out.println("creating cache file: " + cacheFile.getAbsolutePath());
+                        FileWriter fileWriter = new FileWriter(cacheFile);
+
+                        while (bufferedReaderServer.ready()) {
+                            //let's send the data back to client and to cache
+                            try {
+                                Thread.sleep(5);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            data = bufferedReaderServer.readLine() + "\n";
+
+                            clientWriter.write(data);
+                            fileWriter.write(data);
+                        }
+                        fileWriter.flush();
+                        fileWriter.close();
                     }
-                } else {
-                    cacheFile.getParentFile().mkdirs();
-                    cacheFile.createNewFile();
-                    System.out.println("creating cache file: " + cacheFile.getAbsolutePath());
-                    FileWriter fileWriter = new FileWriter(cacheFile);
-                    String data;
+                }else{
                     while (bufferedReaderServer.ready()) {
                         //let's send the data back to client and to cache
                         try {
-                            Thread.sleep(10);
+                            Thread.sleep(5);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                         data = bufferedReaderServer.readLine() + "\n";
                         clientWriter.write(data);
-                        fileWriter.write(data);
-                        if(data.equals("\n")){
-                            clientWriter.flush();
-                        }
                     }
-                    fileWriter.flush();
-                    fileWriter.close();
+
                 }
                 clientWriter.flush();
-
                 System.out.println("finished");
 
             }
