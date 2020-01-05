@@ -3,6 +3,8 @@ package com.company;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public class ProxyServer {
@@ -21,10 +23,12 @@ public class ProxyServer {
         this.serverSocket = new ServerSocket(port);
         this.useCache = useCache;
 
+        ExecutorService pool = Executors.newFixedThreadPool(100);
         while (true) {
             Socket socket = serverSocket.accept();
             System.out.println("new client connected");
-            new Thread(new Runnable() {
+
+            pool.execute(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -33,7 +37,7 @@ public class ProxyServer {
                         e.printStackTrace();
                     }
                 }
-            }).start();
+            });
 
         }
     }
@@ -75,6 +79,13 @@ public class ProxyServer {
                     if (data.contains("Host:")) {
                         //save the host name
                         //80 is the http port
+                        System.out.println("!!!!!" + data);
+                        String host = data.substring(6);
+                        if (host.contains(":")){
+                            //i dont want to handle any connections with port
+                            readSomething = false;
+                            break;
+                        }
                         webSocket = new Socket(data.substring(6), 80);
                         serverIn = webSocket.getInputStream();
                         serverOut = webSocket.getOutputStream();
@@ -91,12 +102,23 @@ public class ProxyServer {
                             int idx = fileName.lastIndexOf('.');
                             fileExtension = fileName.substring(idx);
                             fileName = fileName.substring(0, idx);
+                            fileExtension = fileExtension.replace("?", "_");
+                            fileExtension = fileExtension.replace("/", "_");
+                            fileExtension = fileExtension.replace("=", "_");
+                            fileExtension = fileExtension.replace("&", "_");
                         }
 
                         fileName = fileName.replace("/", "_");
                         fileName = fileName.replace(".", "_");
                         fileName = fileName.replace(":", "_");
                         fileName = fileName.replace("?", "_");
+                        fileName = fileName.replace(",", "_");
+                        fileName = fileName.replace("=", "_");
+                        fileName = fileName.replace("-", "_");
+
+                        if (fileName.length() > 100){
+                            fileName = fileName.substring(0, 100);
+                        }
 
                         fileName = fileName + fileExtension;
                         System.out.println("result word: " + fileName);
