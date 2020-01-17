@@ -14,6 +14,7 @@ public class Main {
         String[] blacklistedWords = null;
         String cachePath = null;
         boolean useCache = true;
+        boolean runInHeavyMode = true;
         for (int i = 0; i < args.length; i++) {
 
             String[] param = args[i].split("=");
@@ -31,6 +32,9 @@ public class Main {
                 case "USE_CACHE":
                     useCache = Boolean.parseBoolean(param[1]);
                     break;
+                case "HEAVY_MODE":
+                    runInHeavyMode = Boolean.parseBoolean(param[1]);
+                    break;
                 default:
                     throw new IllegalArgumentException("Invalid parameter given");
             }
@@ -41,7 +45,7 @@ public class Main {
 
         try {
             System.out.println("Starting the server at port: " + port);
-            new ProxyServer(port, blacklistedWords, cachePath, useCache);
+            new ProxyServer(port, blacklistedWords, cachePath, useCache, runInHeavyMode);
         } catch (IOException e) {
             e.printStackTrace();
         }
