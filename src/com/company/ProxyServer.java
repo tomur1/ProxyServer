@@ -148,6 +148,11 @@ public class ProxyServer {
             }
 
             if (!readSomething || (!runInHeavyMode && isImage)) {
+                BufferedWriter clientWriter = new BufferedWriter(new OutputStreamWriter(clientOut));
+                String notFound = "HTTP/1.0 404 NOT FOUND \r\n\n";
+                clientWriter.write(notFound);
+                clientWriter.flush();
+                clientWriter.close();
                 clientSocket.close();
                 return;
             }
